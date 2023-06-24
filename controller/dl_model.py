@@ -8,14 +8,26 @@ from PIL import Image
 from datetime import datetime
 import asyncio
 import psutil
+import subprocess
 
 
 router = APIRouter(prefix="", tags=['dl_model'])
 
 
+def get_gpu_memory_usage():
+    try:
+        output = subprocess.check_output(['nvidia-smi', '--query-gpu=memory.used', '--format=csv,nounits,noheader'], encoding='utf-8')
+        gpu_memory = [int(x) for x in output.strip().split('\n')]
+        gpu_memory_usage_gb = [round(x / 1024, 2) for x in gpu_memory]
+        return gpu_memory_usage_gb
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return None
+
+
 class ModelClassification(nn.Module):
-    def __init__(self, model_name=None):
+    def __init__(self, model_name=None, device="cpu"):
         super().__init__()
+        self.device = device
         # Define the image transformation
         self.transform = transforms.Compose([
             transforms.Resize((224, 224)),
@@ -36,6 +48,7 @@ class ModelClassification(nn.Module):
             self.model = model
         else:
             raise "This model is not implemented!"
+        self.model.to(torch.device(self.device))
 
     def forward(self, x):
         x = self.model(x)
@@ -45,12 +58,12 @@ class ModelClassification(nn.Module):
         image = Image.open(image_path)
         image = image.convert('RGB')
         image = self.transform(image).unsqueeze(0)
+        image = image.to(torch.device(self.device))
         # Perform inference
         with torch.no_grad():
             outputs = self.model(image)
             _, predicted = torch.max(outputs, 1)
             predicted_class = predicted.item()
-
         return predicted_class
 
 
@@ -58,11 +71,12 @@ class ModelClassification(nn.Module):
 async def inference(request_body: ModelInputSchema):
     # Get CPU and memory usage
     print(f"Request ID: {request_body.request_id}, Start time: {datetime.now()},\
-     CPU: {psutil.cpu_percent()}, Memory: {psutil.virtual_memory().percent}")
-    await asyncio.sleep(3)
-    model = ModelClassification(request_body.model_name)
+     CPU: {psutil.cpu_percent()} (%), GPU: {get_gpu_memory_usage()} (Gb), Memory (RAM) : {psutil.virtual_memory().percent} (%)")
+    await asyncio.sleep(5)
+
+    model = ModelClassification(request_body.model_name, request_body.device)
     output = await model.predict_image(request_body.img_dir)
     print(output, type(output))
     print(f"Request ID: {request_body.request_id}, End time: {datetime.now()},\
-         CPU: {psutil.cpu_percent()}, Memory: {psutil.virtual_memory().percent}")
+         CPU: {psutil.cpu_percent()} (%), GPU: {get_gpu_memory_usage()} (Gb), Memory (RAM) : {psutil.virtual_memory().percent} (%)")
     return ModelOutputSchema(output=output)
