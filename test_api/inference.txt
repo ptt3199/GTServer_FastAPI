@@ -3,6 +3,7 @@
   "model_name": "resnet_18",
   "img_dir": "dataset/example/mnist_7.png",
   "device": "cuda"
+  "sleep": 5
 }
 
 {

@@ -54,7 +54,7 @@ class ModelClassification(nn.Module):
         x = self.model(x)
         return x
 
-    async def predict_image(self, image_path):
+    async def aync_predict_image(self, image_path):
         image = Image.open(image_path)
         image = image.convert('RGB')
         image = self.transform(image).unsqueeze(0)
@@ -66,16 +66,31 @@ class ModelClassification(nn.Module):
             predicted_class = predicted.item()
         return predicted_class
 
+    def predict_image(self, image_path):
+        image = Image.open(image_path)
+        image = image.convert('RGB')
+        image = self.transform(image).unsqueeze(0)
+        image = image.to(torch.device(self.device))
+        # Perform inference
+        with torch.no_grad():
+            outputs = self.model(image)
+            _, predicted = torch.max(outputs, 1)
+            predicted_class = predicted.item()
+        return predicted_class
+
+# If we define the model as a global param, we might not leverate the gpu mem but we do not worry about the Out of Mem issue
+#model = ModelClassification("resnet_18", "cuda")
+
 
 @router.post("/inference")
 async def inference(request_body: ModelInputSchema):
     # Get CPU and memory usage
+    model = ModelClassification(request_body.model_name, request_body.device)
     print(f"Request ID: {request_body.request_id}, Start time: {datetime.now()},\
      CPU: {psutil.cpu_percent()} (%), GPU: {get_gpu_memory_usage()} (Gb), Memory (RAM) : {psutil.virtual_memory().percent} (%)")
     await asyncio.sleep(5)
-
-    model = ModelClassification(request_body.model_name, request_body.device)
-    output = await model.predict_image(request_body.img_dir)
+    #output = model.predict_image(request_body.img_dir)
+    output = await model.aync_predict_image(request_body.img_dir)
     print(output, type(output))
     print(f"Request ID: {request_body.request_id}, End time: {datetime.now()},\
          CPU: {psutil.cpu_percent()} (%), GPU: {get_gpu_memory_usage()} (Gb), Memory (RAM) : {psutil.virtual_memory().percent} (%)")
