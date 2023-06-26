@@ -3,7 +3,7 @@ from sqlalchemy_schemadisplay import create_schema_graph
 from model import *
 
 # Replace with your database credentials
-DB_CONFIG = f"postgresql+asyncpg://postgres:qpfiev95@localhost:8080/my_db"
+DB_CONFIG = f"postgresql+asyncpg://postgres:1231@localhost:5432/gt_thanh"
 
 # Create the database engine and metadata
 engine = create_engine(DB_CONFIG)

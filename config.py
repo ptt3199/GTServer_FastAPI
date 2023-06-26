@@ -5,7 +5,7 @@ from sqlmodel import SQLModel
 from sqlalchemy.ext.declarative import declarative_base
 from models.model import *
 
-DB_CONFIG = f"postgresql+asyncpg://postgres:qpfiev95@localhost:8080/gt_db_2"
+DB_CONFIG = f"postgresql+asyncpg://postgres:1231@localhost:5432/gt_thanh"
 
 
 SECRET_KEY = "secret-key"
